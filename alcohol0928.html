@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -412,7 +412,7 @@
                             <div id="aiSummaryOutput" class="ai-output-box"></div>
                         </div>
                         <div class="warning-message" id="warningMessage" style="display: none;">
-                            <p><strong>警告：</strong>血中酒精濃度已達或超過法定標準(0.03‰)，請勿駕車！</p>
+                            <p><strong>警告：</strong>血中酒精濃度已達或超過行政取締標準(0.3‰ / 0.03%)，請勿駕車！</p>
                         </div>
                         <div class="hourly-table" id="hourlyTable" style="display: none;">
                             <h3>每小時BAC變化</h3>
@@ -698,23 +698,33 @@
         }
 
         function calculateWatsonMetabolism(totalAlcohol, params) {
+            // 1) Watson TBW（單位：L）
             let tbw;
             if (params.gender === 'male') {
-                tbw = 2.447 - (0.09156 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
+                tbw = 2.447 - (0.09516 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
             } else {
                 tbw = -2.097 + (0.1069 * params.height) + (0.2466 * params.weight);
             }
             tbw = Math.max(tbw, params.weight * 0.4);
-            const beta = 0.15 * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
-            const peakBAC = totalAlcohol > 0 ? (totalAlcohol / (tbw * 0.822)) / 10 : 0;
+
+            // 2) 血液含水分率（Bw）＆ 零階清除斜率 β（單位：g/L/hr）
+            const Bw = 0.80;
+            const beta = 0.15; // 固定值，Watson+零階假設
+
+            // 3) 初始 BAC 用 g/L（= ‰）表示，**不要除以 10**
+            const peakBAC = totalAlcohol > 0 ? (totalAlcohol * Bw) / tbw : 0; // g/L == ‰
+
+            // 4) 時間到 0 的理論值
             const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
+
+            // 5) 時序資料（峰值在 t=0）
             const timePoints = [];
             const bacValues = [];
             for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
                 timePoints.push(t);
-                bacValues.push(Math.max(0, peakBAC - (beta * t)));
+                bacValues.push(Math.max(0, peakBAC - beta * t));
             }
-            return { peakBAC, totalTime, timeToPeak: 1.0, timePoints, bacValues };
+            return { peakBAC, totalTime, timeToPeak: 0.0, timePoints, bacValues };
         }
 
         function calculateDualPhaseMetabolism(totalAlcohol, params) {
@@ -772,7 +782,7 @@
             elements.peakBAC.textContent = `${results.peakBAC.toFixed(3)}‰`;
             elements.timeToPeak.textContent = `${results.timeToPeak.toFixed(1)} 小時`;
             elements.totalTime.textContent = `${results.totalTime.toFixed(1)} 小時`;
-            elements.warningMessage.style.display = results.peakBAC >= 0.03 ? 'block' : 'none';
+            elements.warningMessage.style.display = results.peakBAC >= 0.3 ? 'block' : 'none';
             elements.aiInterpretBtn.disabled = false;
             elements.aiSummaryOutput.innerHTML = '';
             updateChart(results);
@@ -786,11 +796,14 @@
                 type: 'line',
                 data: {
                     labels: results.timePoints.map(t => `${t.toFixed(1)}h`),
-                    datasets: [{
+                                        datasets: [{
                         label: 'BAC (‰)', data: results.bacValues, borderColor: 'var(--color-primary)', backgroundColor: 'rgba(59, 125, 189, 0.1)',
                         fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6
                     }, {
-                        label: '法定標準 (0.03‰)', data: new Array(results.timePoints.length).fill(0.03), borderColor: 'var(--color-error)',
+                        label: '行政取締 0.3‰ (0.03%)', data: new Array(results.timePoints.length).fill(0.3), borderColor: 'var(--color-warning)',
+                        backgroundColor: 'transparent', borderDash: [5, 5], pointRadius: 0
+                    }, {
+                        label: '刑責 0.5‰ (0.05%)', data: new Array(results.timePoints.length).fill(0.5), borderColor: 'var(--color-error)',
                         backgroundColor: 'transparent', borderDash: [5, 5], pointRadius: 0
                     }]
                 },
@@ -809,8 +822,8 @@
                 const bac = results.bacValues[i];
                 let status = 'status-safe';
                 let statusText = '安全';
-                if (bac >= 0.05) { status = 'status-danger'; statusText = '危險'; } 
-                else if (bac >= 0.03) { status = 'status-warning'; statusText = '警告'; }
+                if (bac >= 0.5) { status = 'status-danger'; statusText = '危險'; } 
+                else if (bac >= 0.3) { status = 'status-warning'; statusText = '警告'; }
                 html += `<tr><td>${time.toFixed(1)} 小時</td><td>${bac.toFixed(3)}‰</td><td class="${status}">${statusText}</td></tr>`;
             }
             elements.hourlyTableBody.innerHTML = html;
