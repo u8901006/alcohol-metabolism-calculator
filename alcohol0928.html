@@ -719,30 +719,48 @@
 
         function calculateDualPhaseMetabolism(totalAlcohol, params) {
             const r = factors.gender[params.gender].r;
-            const ka = factors.food_status[params.foodStatus].ka;
+            const ka = Math.max(factors.food_status[params.foodStatus].ka, 1e-4);
             const Vd = r * params.weight;
-            const Ke = (0.015 / 10) * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            const genderFactor = factors.gender[params.gender].elimination_factor;
+            const liverFactor = factors.liver_function[params.liverFunction];
+            const drinkingFactor = factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            const adjustedRate = params.metabolismRate * genderFactor * liverFactor * drinkingFactor;
+            const baseKe = (adjustedRate > 0 && Vd > 0) ? adjustedRate / (Vd * 1.055) : 0;
+            const ke = Math.max(baseKe, 1e-4);
+            const nearEqual = Math.abs(ka - ke) < 1e-4;
             let tpeak = 1.0, peakBAC = 0, totalTime = 0;
             if (totalAlcohol > 0) {
-                if (ka > Ke) {
-                    tpeak = (1 / (ka - Ke)) * Math.log(ka / Ke);
-                    peakBAC = (totalAlcohol / Vd) * (ka / (ka - Ke)) * (Math.exp(-Ke * tpeak) - Math.exp(-ka * tpeak));
+                if (nearEqual) {
+                    tpeak = 1 / ke;
+                    peakBAC = (totalAlcohol / Vd) * Math.exp(-1);
                 } else {
-                    peakBAC = (totalAlcohol / (Vd * 1.055)) / 10;
+                    tpeak = Math.log(ka / ke) / (ka - ke);
+                    if (!Number.isFinite(tpeak) || tpeak < 0) {
+                        tpeak = 0;
+                    }
+                    peakBAC = (totalAlcohol / Vd) * (ka / (ka - ke)) * (Math.exp(-ke * tpeak) - Math.exp(-ka * tpeak));
                 }
-                totalTime = Math.max(tpeak + (peakBAC / Ke), 4);
+                peakBAC = Math.max(0, peakBAC);
+                if (ke > 0) {
+                    const targetBAC = 0.005;
+                    const safePeak = Math.max(peakBAC, targetBAC);
+                    const eliminationTail = Math.log(safePeak / targetBAC) / ke;
+                    totalTime = Math.max(4, tpeak + Math.max(0, eliminationTail));
+                } else {
+                    totalTime = Math.max(4, tpeak + 4);
+                }
             }
             const timePoints = [];
             const bacValues = [];
             for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
                 timePoints.push(t);
                 let bac = 0;
-                if (totalAlcohol > 0 && ka > Ke) {
-                    bac = (totalAlcohol / Vd) * (ka / (ka - Ke)) * (Math.exp(-Ke * t) - Math.exp(-ka * t));
-                } else if (totalAlcohol > 0) {
-                     const adjustedRate = params.metabolismRate * factors.gender[params.gender].elimination_factor * factors.liver_function[params.liverFunction];
-                     const remainingAlcohol = Math.max(0, totalAlcohol - (adjustedRate * t));
-                     bac = (remainingAlcohol / (Vd * 1.055)) / 10;
+                if (totalAlcohol > 0) {
+                    if (nearEqual) {
+                        bac = (totalAlcohol / Vd) * ke * t * Math.exp(-ke * t);
+                    } else {
+                        bac = (totalAlcohol / Vd) * (ka / (ka - ke)) * (Math.exp(-ke * t) - Math.exp(-ka * t));
+                    }
                 }
                 bacValues.push(Math.max(0, bac));
             }
