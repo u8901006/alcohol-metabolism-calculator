@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>酒精代謝計算器 - AI 增強版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Noto+Sans+TC:wght@400;500&display=swap');
+
+      :root {
+        --color-white: rgba(255, 255, 255, 1);
+        --color-page-bg: #F8F9FA;
+        --color-surface-bg: #FFFFFF;
+        --color-header-text: #272727;
+        --color-body-text: #444444;
+        --color-secondary-text: #6c757d;
+        --color-primary: #3B8DBD;
+        --color-primary-hover: #3278A8;
+        --color-primary-active: #2A668F;
+        --color-border: #e0e0e0;
+        --color-light-gray-bg: #f1f1f1;
+        --color-error: #B4413C; 
+        --color-warning: #f0ad4e;
+        --color-success: #5cb85c;
+        --color-info: #5bc0de;
+        --color-secondary: rgba(59, 130, 246, 0.08);
+        --color-btn-primary-text: var(--color-white);
+        --color-card-border: var(--color-border);
+        --color-card-border-inner: var(--color-border);
+        --color-focus-ring: rgba(59, 125, 189, 0.4);
+        --font-family-base: 'Noto Sans TC', sans-serif;
+        --font-family-headings: 'Montserrat', sans-serif;
+        --font-size-base: 14px;
+        --font-size-lg: 16px;
+        --font-size-xl: 18px;
+        --font-size-2xl: 20px;
+        --font-size-3xl: 24px;
+        --font-size-4xl: 30px;
+        --font-weight-medium: 500;
+        --font-weight-semibold: 600;
+        --font-weight-bold: 700;
+        --line-height-tight: 1.2;
+        --line-height-normal: 1.6;
+        --space-8: 8px;
+        --space-16: 16px;
+        --space-24: 24px;
+        --space-32: 32px;
+        --radius-base: 6px;
+        --radius-lg: 8px;
+        --radius-full: 9999px;
+        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.06);
+        --duration-fast: 150ms;
+        --duration-normal: 250ms;
+        --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+        --container-lg: 1024px;
+      }
+      
+      html {
+        font-size: var(--font-size-base);
+        font-family: var(--font-family-base);
+        line-height: var(--line-height-normal);
+        color: var(--color-text);
+        background-color: var(--color-page-bg);
+        -webkit-font-smoothing: antialiased;
+        box-sizing: border-box;
+      }
+
+      body { margin: 0; padding: 0; }
+      *, *::before, *::after { box-sizing: inherit; }
+
+      h1, h2, h3, h4, h5 {
+        margin: 0;
+        font-family: var(--font-family-headings);
+        font-weight: var(--font-weight-semibold);
+        line-height: var(--line-height-tight);
+        color: var(--color-header-text);
+      }
+      h1 { font-size: var(--font-size-4xl); }
+      h2 { font-size: var(--font-size-3xl); }
+      h3 { font-size: var(--font-size-2xl); }
+      h4 { font-size: var(--font-size-xl); }
+      h5 { font-size: var(--font-size-lg); }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-8) var(--space-16);
+        border-radius: var(--radius-base);
+        font-size: var(--font-size-base);
+        font-weight: 500;
+        line-height: 1.5;
+        cursor: pointer;
+        transition: all var(--duration-normal) var(--ease-standard);
+        border: none;
+        text-decoration: none;
+      }
+      .btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--color-focus-ring); }
+      .btn--primary { background: var(--color-primary); color: var(--color-btn-primary-text); }
+      .btn--primary:hover { background: var(--color-primary-hover); }
+      .btn--secondary { background: var(--color-secondary); color: var(--color-text); }
+      .btn--secondary:hover { background: var(--color-secondary-hover); }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .form-control {
+        display: block;
+        width: 100%;
+        padding: var(--space-8) 12px;
+        font-size: var(--font-size-base);
+        line-height: 1.5;
+        color: var(--color-text);
+        background-color: var(--color-surface-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-base);
+        transition: border-color var(--duration-fast) ease-in-out, box-shadow var(--duration-fast) ease-in-out;
+      }
+      select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23444444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: var(--space-32);
+      }
+      .form-control:focus { border-color: var(--color-primary); outline: 0; box-shadow: 0 0 0 3px var(--color-focus-ring); }
+      .form-label { display: block; margin-bottom: var(--space-8); font-weight: var(--font-weight-medium); }
+      .form-group { margin-bottom: var(--space-16); }
+
+      .card { background-color: var(--color-surface-bg); border-radius: var(--radius-lg); border: 1px solid var(--color-card-border); box-shadow: var(--shadow-sm); overflow: hidden; }
+      .card__body { padding: 20px; }
+      .card__header { padding: var(--space-16) 20px; border-bottom: 1px solid var(--color-card-border-inner); display: flex; justify-content: space-between; align-items: center; }
+      
+      .container { width: 100%; max-width: var(--container-lg); margin: 0 auto; padding: var(--space-16); }
+      .hidden { display: none; }
+      
+      .app-header { text-align: center; margin-bottom: var(--space-32); padding: var(--space-24) 0; border-bottom: 1px solid var(--color-border); }
+      .app-header h1 { margin-bottom: var(--space-8); }
+      .app-header p { color: var(--color-secondary-text); font-size: var(--font-size-lg); margin: 0; }
+      .app-main { display: flex; flex-direction: column; gap: var(--space-24); }
+      
+      .formula-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: 20px; }
+      .formula-option { border: 2px solid var(--color-border); border-radius: var(--radius-base); overflow: hidden; transition: all var(--duration-normal) var(--ease-standard); }
+      .formula-option:hover { border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+      .formula-label { display: block; cursor: pointer; }
+      .formula-label input[type="radio"] { position: absolute; opacity: 0; }
+      .formula-content { padding: var(--space-16); background: var(--color-surface-bg); transition: background-color var(--duration-normal) ease-in-out; }
+      .formula-label input[type="radio"]:checked + .formula-content { background: var(--color-secondary); box-shadow: inset 0 0 0 2px var(--color-primary); }
+      .formula-content h3 { font-size: var(--font-size-lg); margin-bottom: var(--space-8); }
+      .formula-content p { font-size: 12px; color: var(--color-secondary-text); margin: 0; }
+      
+      .simple-rate-control { background: var(--color-secondary); padding: var(--space-16); border-radius: var(--radius-base); margin-top: var(--space-16); }
+      .rate-adjuster-container { display: flex; align-items: center; justify-content: center; gap: var(--space-16); }
+      .btn--adjust { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-full); font-size: var(--font-size-2xl); line-height: 1; cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); border: 1px solid var(--color-border); background-color: var(--color-surface-bg); color: var(--color-primary); box-shadow: var(--shadow-sm); }
+      .btn--adjust:hover { background-color: var(--color-light-gray-bg); border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+      .btn--adjust:active { transform: translateY(1px); }
+      .rate-value { font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--color-primary); min-width: 60px; text-align: center; }
+      
+      .params-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); }
+
+      .beverage-tabs { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-bottom: 20px; }
+      .tab-btn { padding: var(--space-8) 12px; border: 1px solid var(--color-border); background: var(--color-surface-bg); color: var(--color-text); border-radius: var(--radius-base); cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); font-size: 12px; font-weight: var(--font-weight-medium); }
+      .tab-btn:hover { background: var(--color-light-gray-bg); }
+      .tab-btn.active { background: var(--color-primary); color: var(--color-btn-primary-text); border-color: var(--color-primary); }
+
+      .beverage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-bottom: 20px; }
+      .beverage-card { border: 1px solid var(--color-border); border-radius: var(--radius-base); padding: 12px; background: var(--color-surface-bg); cursor: pointer; transition: all var(--duration-fast) var(--ease-standard); }
+      .beverage-card:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
+      .beverage-name { font-weight: var(--font-weight-medium); color: var(--color-header-text); margin-bottom: 4px; }
+      .beverage-details { font-size: 12px; color: var(--color-secondary-text); display: flex; justify-content: space-between; }
+      .beverage-alcohol { font-weight: var(--font-weight-medium); color: var(--color-primary); }
+
+      .custom-input { background: var(--color-page-bg); padding: var(--space-16); border-radius: var(--radius-base); margin-bottom: var(--space-16); border: 1px solid var(--color-border); }
+
+      .selected-drinks { border-top: 1px solid var(--color-border); padding-top: var(--space-16); }
+      .selected-drinks h3 { margin-bottom: var(--space-16); }
+      .drinks-list { display: flex; flex-direction: column; gap: var(--space-8); }
+      .empty-message { color: var(--color-secondary-text); font-style: italic; text-align: center; padding: var(--space-16); margin: 0; background: var(--color-page-bg); border-radius: var(--radius-base); }
+      .drink-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--color-surface-bg); border-radius: var(--radius-base); border: 1px solid var(--color-border); }
+      .drink-info { flex: 1; }
+      .drink-name { font-weight: var(--font-weight-medium); margin-bottom: 4px; }
+      .drink-details { font-size: 12px; color: var(--color-secondary-text); }
+      .drink-alcohol { font-weight: var(--font-weight-bold); color: var(--color-primary); margin-right: 12px; }
+      .remove-drink { background: var(--color-error); color: var(--color-white); border: none; padding: 4px var(--space-8); border-radius: 4px; cursor: pointer; font-size: 12px; transition: background var(--duration-fast) ease-in-out; }
+      .remove-drink:hover { background: #c9302c; }
+
+      .results-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-16); margin-bottom: var(--space-24); }
+      .summary-item { display: flex; flex-direction: column; align-items: center; padding: var(--space-16); background: var(--color-page-bg); border-radius: var(--radius-base); border: 1px solid var(--color-border); }
+      .summary-item .label { font-size: 12px; color: var(--color-secondary-text); margin-bottom: 4px; }
+      .summary-item .value { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-primary); }
+      
+      .chart-container { margin: var(--space-24) 0; background: var(--color-surface-bg); border-radius: var(--radius-base); padding: var(--space-16); border: 1px solid var(--color-border); }
+      
+      .ai-container { margin: var(--space-24) 0; }
+      .ai-output-box {
+        background-color: var(--color-secondary);
+        border-radius: var(--radius-base);
+        padding: var(--space-16);
+        margin-top: var(--space-16);
+        font-size: var(--font-size-base);
+        line-height: var(--line-height-normal);
+        color: var(--color-text);
+        white-space: pre-wrap;
+        min-height: 50px;
+      }
+      
+      .warning-message { background: rgba(180, 65, 60, 0.1); border: 1px solid rgba(180, 65, 60, 0.3); color: var(--color-error); padding: var(--space-16); border-radius: var(--radius-base); margin: var(--space-16) 0; text-align: center; }
+      .warning-message p { margin: 0; font-weight: var(--font-weight-medium); }
+      
+      .hourly-table { margin-top: var(--space-24); }
+      .hourly-table h3 { margin-bottom: var(--space-16); }
+      .hourly-table table { width: 100%; border-collapse: collapse; background: var(--color-surface-bg); border-radius: var(--radius-base); overflow: hidden; border: 1px solid var(--color-border); }
+      .hourly-table th { background: var(--color-light-gray-bg); padding: 12px; text-align: left; font-weight: var(--font-weight-semibold); color: var(--color-header-text); border-bottom: 2px solid var(--color-border); }
+      .hourly-table td { padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+      .hourly-table tr:last-child td { border-bottom: none; }
+      .status-safe { color: var(--color-success); font-weight: var(--font-weight-medium); }
+      .status-warning { color: var(--color-warning); font-weight: var(--font-weight-medium); }
+      .status-danger { color: var(--color-error); font-weight: var(--font-weight-medium); }
+
+      .app-footer { margin-top: var(--space-32); padding-top: var(--space-24); border-top: 1px solid var(--color-border); }
+      .disclaimer { background: var(--color-page-bg); padding: var(--space-16); border-radius: var(--radius-base); border-left: 4px solid var(--color-warning); }
+      .disclaimer p { margin: 0; font-size: 12px; color: var(--color-secondary-text); }
+
+      @media (max-width: 768px) {
+        .formula-grid, .params-grid, .results-summary, .beverage-grid { grid-template-columns: 1fr; }
+        .beverage-tabs { flex-direction: column; }
+        .tab-btn { text-align: center; }
+        .drink-item { flex-direction: column; align-items: flex-start; gap: var(--space-8); }
+        .chart-container { height: 300px !important; }
+      }
+      @media (max-width: 480px) {
+        .container { padding: var(--space-8); }
+        h1 { font-size: var(--font-size-3xl); }
+        .chart-container { height: 250px !important; }
+      }
+    </style>
+</head>
+<body>
+    <div id="app-2025-alcohol-calculator">
+        <div class="container">
+            <header class="app-header">
+                <h1>酒精代謝計算器</h1>
+                <p class="app-subtitle">專業血中酒精濃度計算與代謝時間估算</p>
+            </header>
+            <main class="app-main">
+                <section class="card formula-selector">
+                    <div class="card__header">
+                        <h2>計算公式選擇</h2>
+                    </div>
+                    <div class="card__body">
+                        <div class="formula-grid">
+                            <div class="formula-option">
+                                <label class="formula-label">
+                                    <input type="radio" name="formula" value="simple" checked="">
+                                    <div class="formula-content">
+                                        <h3>固定代謝速率</h3>
+                                        <p>簡單線性消除模型</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="formula-option">
+                                <label class="formula-label">
+                                    <input type="radio" name="formula" value="widmark">
+                                    <div class="formula-content">
+                                        <h3>Widmark 公式</h3>
+                                        <p>經典BAC計算方法</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="formula-option">
+                                <label class="formula-label">
+                                    <input type="radio" name="formula" value="watson">
+                                    <div class="formula-content">
+                                        <h3>Watson 公式</h3>
+                                        <p>改良體液分佈估算</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="formula-option">
+                                <label class="formula-label">
+                                    <input type="radio" name="formula" value="dual_phase">
+                                    <div class="formula-content">
+                                        <h3>雙相動力學</h3>
+                                        <p>吸收消除完整模型</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="simple-rate-control" id="simpleRateControl" style="display: block;">
+                            <label class="form-label">每小時代謝速率 (g/hr)</label>
+                            <div class="rate-adjuster-container">
+                                <button class="btn--adjust" id="decreaseRateBtn" aria-label="減少代謝速率">-</button>
+                                <span class="rate-value" id="metabolismRateValue">7.0</span>
+                                <button class="btn--adjust" id="increaseRateBtn" aria-label="增加代謝速率">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="card personal-params">
+                    <div class="card__header">
+                        <h2>個人參數設定</h2>
+                    </div>
+                    <div class="card__body">
+                        <div class="params-grid">
+                            <div class="form-group">
+                                <label class="form-label">性別</label>
+                                <select class="form-control" id="gender">
+                                    <option value="male">男性</option>
+                                    <option value="female">女性</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">體重 (kg)</label>
+                                <input type="number" class="form-control" id="weight" min="30" max="200" value="70">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">身高 (cm)</label>
+                                <input type="number" class="form-control" id="height" min="120" max="220" value="170">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">年齡</label>
+                                <input type="number" class="form-control" id="age" min="18" max="100" value="30">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">肝功能狀態</label>
+                                <select class="form-control" id="liverFunction">
+                                    <option value="normal">正常</option>
+                                    <option value="child_pugh_a">Child-Pugh A</option>
+                                    <option value="child_pugh_b">Child-Pugh B</option>
+                                    <option value="child_pugh_c">Child-Pugh C</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">飲食狀態</label>
+                                <select class="form-control" id="foodStatus">
+                                    <option value="fasted">空腹</option>
+                                    <option value="light_meal">輕食</option>
+                                    <option value="heavy_meal">重食</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">飲酒習慣</label>
+                                <select class="form-control" id="drinkingPattern">
+                                    <option value="occasional">偶爾飲酒</option>
+                                    <option value="regular">規律飲酒</option>
+                                    <option value="heavy">重度飲酒</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="card beverage-selector">
+                    <div class="card__header">
+                        <h2>酒精飲品選擇</h2>
+                    </div>
+                    <div class="card__body">
+                        <div class="beverage-tabs">
+                            <button class="tab-btn active" data-category="taiwan_beer">台灣啤酒</button>
+                            <button class="tab-btn" data-category="import_beer">進口啤酒</button>
+                            <button class="tab-btn" data-category="sparkling_wine">氣泡酒</button>
+                            <button class="tab-btn" data-category="sours">沙瓦</button>
+                            <button class="tab-btn" data-category="red_wine">紅酒</button>
+                            <button class="tab-btn" data-category="white_wine">白酒</button>
+                            <button class="tab-btn" data-category="japanese_sake">日本清酒</button>
+                            <button class="tab-btn" data-category="korean_soju">韓國酒</button>
+                            <button class="tab-btn" data-category="rice_wine_michiu">米酒</button>
+                            <button class="tab-btn" data-category="red_wine_honglu">紅露酒</button>
+                            <button class="tab-btn" data-category="plum_wine">梅酒</button>
+                            <button class="tab-btn" data-category="liqueur">利口酒</button>
+                            <button class="tab-btn" data-category="spirits">烈酒</button>
+                            <button class="tab-btn" data-category="kaoliang">高粱酒</button>
+                            <button class="tab-btn" data-category="cocktails">調酒</button>
+                            <button class="tab-btn" data-category="custom">自訂</button>
+                        </div>
+                        <div class="beverage-content">
+                            <div class="beverage-grid" id="beverageGrid"></div>
+                            <div class="custom-input hidden" id="customInput">
+                                <div class="form-group"><label class="form-label">飲品名稱</label><input type="text" class="form-control" id="customName" placeholder="自訂飲品名稱"></div>
+                                <div class="form-group"><label class="form-label">容量 (mL)</label><input type="number" class="form-control" id="customVolume" min="1" max="2000" placeholder="330"></div>
+                                <div class="form-group"><label class="form-label">酒精濃度 (%)</label><input type="number" class="form-control" id="customABV" min="0" max="100" step="0.1" placeholder="5.0"></div>
+                                <button class="btn btn--primary" id="addCustomBtn">添加飲品</button>
+                            </div>
+                        </div>
+                        <div class="selected-drinks" id="selectedDrinks">
+                            <h3>已選擇的飲品</h3>
+                            <div class="drinks-list" id="drinksList">
+                                <p class="empty-message">尚未選擇任何飲品</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="card results-display">
+                    <div class="card__header">
+                        <h2>計算結果</h2>
+                        <button class="btn btn--primary" id="calculateBtn">計算</button>
+                    </div>
+                    <div class="card__body">
+                        <div class="results-summary" id="resultsSummary">
+                            <div class="summary-item"><span class="label">總酒精量</span><span class="value" id="totalAlcohol">0 g</span></div>
+                            <div class="summary-item"><span class="label">預估BAC峰值</span><span class="value" id="peakBAC">0.000‰</span></div>
+                            <div class="summary-item"><span class="label">到達峰值時間</span><span class="value" id="timeToPeak">0 小時</span></div>
+                            <div class="summary-item"><span class="label">完全代謝時間</span><span class="value" id="totalTime">0 小時</span></div>
+                        </div>
+                        <div class="chart-container" style="position: relative; height: 400px;">
+                            <canvas id="metabolismChart"></canvas>
+                        </div>
+                        <div class="ai-container">
+                            <button class="btn btn--secondary" id="aiInterpretBtn" disabled="">讓 AI 為我解讀</button>
+                            <div id="aiSummaryOutput" class="ai-output-box"></div>
+                        </div>
+                        <div class="warning-message" id="warningMessage" style="display: none;">
+                            <p><strong>警告：</strong>血中酒精濃度已達或超過法定標準(0.03‰)，請勿駕車！</p>
+                        </div>
+                        <div class="hourly-table" id="hourlyTable" style="display: none;">
+                            <h3>每小時BAC變化</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>時間</th>
+                                        <th>BAC (‰)</th>
+                                        <th>狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hourlyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            <footer class="app-footer">
+                <div class="disclaimer">
+                    <p><strong>免責聲明：</strong>此計算器僅供教育和參考用途，個體差異可能導致實際結果與計算結果不同。請勿將此結果用於法律或安全相關決策。如有疑問請諮詢醫療專業人員。AI 解讀功能由 Google Gemini Nano 模型生成，其建議為通用提醒，不構成任何形式的醫療建議。</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+    <script>
+    //<![CDATA[
+    window.onload = function() {
+        const app = document.getElementById('app-2025-alcohol-calculator');
+        if (!app) {
+            console.error("Alcohol Calculator App container not found.");
+            return;
+        }
+
+        const beverageData = {
+            taiwan_beer: [ {name: "台灣啤酒經典", volume: 330, abv: 5.0, alcohol_g: 13.2}, {name: "台灣啤酒金牌", volume: 330, abv: 5.0, alcohol_g: 13.2}, {name: "台灣啤酒小麥", volume: 330, abv: 5.2, alcohol_g: 13.7}, {name: "台灣生啤酒", volume: 600, abv: 4.8, alcohol_g: 23.0}, {name: "台灣啤酒暗黑", volume: 330, abv: 8.0, alcohol_g: 21.1}, {name: "台灣啤酒鳳梨", volume: 330, abv: 3.5, alcohol_g: 9.2}, {name: "台灣啤酒蘋果", volume: 330, abv: 2.6, alcohol_g: 6.9} ],
+            import_beer: [ {name: "Heineken", volume: 330, abv: 5.0, alcohol_g: 13.2}, {name: "Kirin Ichiban 麒麟一番榨", volume: 330, abv: 5.0, alcohol_g: 13.2}, {name: "Asahi Super Dry 朝日超爽", volume: 330, abv: 5.0, alcohol_g: 13.2}, {name: "Budweiser 百威", volume: 330, abv: 5.0, alcohol_g: 13.2} ],
+            sparkling_wine: [ {name: "DB水果氣泡酒", volume: 750, abv: 8.0, alcohol_g: 47.3}, {name: "Martini Asti", volume: 750, abv: 7.5, alcohol_g: 44.4}, {name: "Freixenet 卡瓦", volume: 750, abv: 11.5, alcohol_g: 67.9}, {name: "Moët & Chandon Impérial Brut", volume: 750, abv: 12.0, alcohol_g: 71.0}, {name: "Veuve Clicquot Yellow Label", volume: 750, abv: 12.0, alcohol_g: 71.0}, {name: "Bottega Rose Gold", volume: 750, abv: 11.5, alcohol_g: 67.9}, {name: "CHANDON Garden Spritz", volume: 750, abv: 11.5, alcohol_g: 67.9}, {name: "SUNMAI MISSS 蜜果蜂蜜氣泡酒", volume: 350, abv: 4.5, alcohol_g: 12.4} ],
+            sours: [ {name: "HOROYOI 乳酸沙瓦", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "HOROYOI 白桃沙瓦", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "HOROYOI 荔枝茉莉花茶沙瓦", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "HOROYOI 草莓奢華氣泡", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "Sour3 八朔蜂蜜沙瓦", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "Sour3 紅心芭樂沙瓦", volume: 350, abv: 3.0, alcohol_g: 8.3}, {name: "臺虎精釀 8%臺式檸檬沙瓦", volume: 500, abv: 8.0, alcohol_g: 31.6}, {name: "本搾 柳橙沙瓦", volume: 350, abv: 6.0, alcohol_g: 16.6}, {name: "NIJIYA 蜂蜜蘋果沙瓦", volume: 350, abv: 4.0, alcohol_g: 11.0}, {name: "可口可樂 濃檸檬沙瓦", volume: 350, abv: 9.0, alcohol_g: 24.9}, {name: "Safari Club 葡萄覓蘋沙瓦", volume: 350, abv: 9.0, alcohol_g: 24.9} ],
+            red_wine: [ {name: "紅酒單杯", volume: 150, abv: 13.5, alcohol_g: 16.0}, {name: "紅酒標準瓶", volume: 750, abv: 13.5, alcohol_g: 79.9}, {name: "朗美爾 穩健希哈紅酒", volume: 750, abv: 14.5, alcohol_g: 85.8}, {name: "卡帝娜 馬爾貝克紅酒", volume: 750, abv: 13.5, alcohol_g: 79.9}, {name: "黃尾袋鼠 梅洛紅酒", volume: 750, abv: 13.5, alcohol_g: 79.9}, {name: "奔富庫濃格 希哈卡本內", volume: 750, abv: 14.5, alcohol_g: 85.8}, {name: "約瑟．費普 卡本內蘇維儂", volume: 750, abv: 14.5, alcohol_g: 85.8}, {name: "JP香奈 梅洛紅酒", volume: 750, abv: 13.0, alcohol_g: 76.9}, {name: "逐鹿 拉雅曼達紅酒", volume: 750, abv: 15.0, alcohol_g: 88.8}, {name: "Head Wines 老藤希哈", volume: 750, abv: 14.0, alcohol_g: 82.8}, {name: "秋丘 拉克瑞瑪紅酒", volume: 750, abv: 13.0, alcohol_g: 76.9}, {name: "奔富庫濃格 希哈紅酒", volume: 750, abv: 14.5, alcohol_g: 85.8} ],
+            white_wine: [ {name: "白酒單杯", volume: 150, abv: 12.5, alcohol_g: 14.8}, {name: "白酒標準瓶", volume: 750, abv: 12.5, alcohol_g: 73.9}, {name: "南極星 白蘇維翁白酒", volume: 750, abv: 13.0, alcohol_g: 76.9}, {name: "Roseblood d'Estoublon 白酒", volume: 750, abv: 12.5, alcohol_g: 73.9}, {name: "柏金漢 白梢楠白酒", volume: 750, abv: 13.5, alcohol_g: 79.9}, {name: "賀加爾 經典格慕斯塔明那", volume: 750, abv: 13.0, alcohol_g: 76.9}, {name: "雙手 不老頑童麗絲玲", volume: 750, abv: 12.0, alcohol_g: 71.0}, {name: "La Spinetta Moscato d'Asti", volume: 750, abv: 5.5, alcohol_g: 32.5}, {name: "黃尾袋鼠 慕斯卡特白酒", volume: 750, abv: 7.5, alcohol_g: 44.4}, {name: "DOLCE 3 慕思嘉甜白酒", volume: 750, abv: 5.0, alcohol_g: 29.6}, {name: "Capetta 義大利微甜白酒", volume: 750, abv: 5.5, alcohol_g: 32.5}, {name: "科克蘭 玫瑰葡萄酒", volume: 750, abv: 13.0, alcohol_g: 76.9} ],
+            japanese_sake: [ {name: "獺祭三割九分", volume: 720, abv: 16.0, alcohol_g: 91.0}, {name: "久保田千壽", volume: 720, abv: 15.0, alcohol_g: 85.2}, {name: "八海山純米大吟釀", volume: 720, abv: 15.5, alcohol_g: 88.0}, {name: "久保田萬壽", volume: 720, abv: 15.0, alcohol_g: 85.2}, {name: "月桂冠上撰", volume: 720, abv: 15.5, alcohol_g: 88.0}, {name: "月桂冠佳撰", volume: 210, abv: 14.5, alcohol_g: 24.0}, {name: "上善如水純米吟釀", volume: 720, abv: 14.5, alcohol_g: 82.3}, {name: "魚沼淡麗純米酒", volume: 720, abv: 14.0, alcohol_g: 79.5}, {name: "玉泉珍藏純米清酒", volume: 500, abv: 13.5, alcohol_g: 53.3}, {name: "菊富士生貯藏清酒", volume: 300, abv: 14.5, alcohol_g: 34.3}, {name: "月桂冠 大吟釀", volume: 720, abv: 15.5, alcohol_g: 88.0} ],
+            korean_soju: [ {name: "真露清爽(360ml)", volume: 360, abv: 16.9, alcohol_g: 48.0}, {name: "真露清爽(375ml)", volume: 375, abv: 16.5, alcohol_g: 48.8}, {name: "初醇原味", volume: 350, abv: 16.5, alcohol_g: 45.6}, {name: "初醇優格風味", volume: 350, abv: 12.0, alcohol_g: 33.1}, {name: "馬格利", volume: 750, abv: 7.5, alcohol_g: 44.4}, {name: "Chum Churum 水蜜桃燒酒", volume: 360, abv: 12.0, alcohol_g: 34.1}, {name: "HiteJinro 草莓燒酒", volume: 360, abv: 13.0, alcohol_g: 36.9}, {name: "Chamisul 青葡萄燒酒", volume: 360, abv: 13.0, alcohol_g: 36.9}, {name: "Good Day 原味燒酒", volume: 360, abv: 16.9, alcohol_g: 48.0} ],
+            rice_wine_michiu: [ {name: "紅標料理米酒", volume: 300, abv: 19.5, alcohol_g: 46.2}, {name: "紅標純米料理米酒", volume: 600, abv: 19.5, alcohol_g: 92.3}, {name: "紅標米酒水", volume: 600, abv: 0.5, alcohol_g: 2.4}, {name: "米酒頭", volume: 300, abv: 34.0, alcohol_g: 80.5} ],
+            red_wine_honglu: [ {name: "特級紅露酒", volume: 300, abv: 14.0, alcohol_g: 33.1}, {name: "金雞陳年紅露酒", volume: 600, abv: 16.5, alcohol_g: 78.1}, {name: "窖藏金雞老紅酒", volume: 750, abv: 17.0, alcohol_g: 100.6} ],
+            plum_wine: [ {name: "CHOYA本格梅酒", volume: 720, abv: 15.0, alcohol_g: 85.2}, {name: "白鶴梅酒原酒", volume: 720, abv: 19.5, alcohol_g: 110.8}, {name: "CHOYA宇治茶梅酒", volume: 720, abv: 7.5, alcohol_g: 42.6}, {name: "中野BC紀州蜂蜜梅酒", volume: 720, abv: 12.0, alcohol_g: 68.0}, {name: "SHIN白蘭地梅酒", volume: 500, abv: 19.7, alcohol_g: 77.7}, {name: "梅侍紅玉紅茶梅酒", volume: 500, abv: 8.0, alcohol_g: 31.6}, {name: "世嵵香柚梅酒", volume: 720, abv: 12.0, alcohol_g: 68.0}, {name: "禾發堂梅清梅酒", volume: 520, abv: 12.0, alcohol_g: 49.2}, {name: "桃姬梅酒", volume: 720, abv: 8.0, alcohol_g: 45.4}, {name: "望山穗熟梅酒", volume: 720, abv: 13.0, alcohol_g: 73.8} ],
+            liqueur: [ {name: "貝禮詩奶酒", volume: 700, abv: 17.0, alcohol_g: 93.9}, {name: "卡魯哇咖啡利口酒", volume: 700, abv: 20.0, alcohol_g: 110.5}, {name: "迪莎蘿娜杏仁酒", volume: 700, abv: 28.0, alcohol_g: 154.6}, {name: "君度橙皮利口酒", volume: 700, abv: 40.0, alcohol_g: 220.9}, {name: "金巴利香甜酒", volume: 700, abv: 25.0, alcohol_g: 138.1}, {name: "瑪莉白莎荔枝香甜酒", volume: 700, abv: 20.0, alcohol_g: 110.5}, {name: "瑪莉白莎水蜜桃香甜酒", volume: 700, abv: 18.0, alcohol_g: 99.4}, {name: "培恩 XO 咖啡龍舌蘭酒", volume: 750, abv: 35.0, alcohol_g: 207.1}, {name: "芙內布蘭卡苦酒", volume: 700, abv: 39.0, alcohol_g: 215.1}, {name: "百陽百香果利口酒", volume: 700, abv: 17.0, alcohol_g: 93.9} ],
+            spirits: [ {name: "威士忌 Shot", volume: 30, abv: 40.0, alcohol_g: 9.6}, {name: "威士忌標準瓶", volume: 750, abv: 40.0, alcohol_g: 240.0}, {name: "伏特加 Shot", volume: 30, abv: 40.0, alcohol_g: 9.6}, {name: "伏特加標準瓶", volume: 750, abv: 40.0, alcohol_g: 240.0}, {name: "龍舌蘭 Shot", volume: 30, abv: 38.0, alcohol_g: 9.1}, {name: "龍舌蘭標準瓶", volume: 750, abv: 38.0, alcohol_g: 228.0}, {name: "白蘭地 Shot", volume: 30, abv: 40.0, alcohol_g: 9.6}, {name: "白蘭地標準瓶", volume: 700, abv: 40.0, alcohol_g: 224.0}, {name: "金賓波本威士忌 (200ml)", volume: 200, abv: 40.0, alcohol_g: 63.1}, {name: "三得利角瓶 (180ml)", volume: 180, abv: 40.0, alcohol_g: 56.8}, {name: "絕對伏特加 (200ml)", volume: 200, abv: 40.0, alcohol_g: 63.1}, {name: "黑牌12年威士忌 (200ml)", volume: 200, abv: 40.0, alcohol_g: 63.1}, {name: "尊美醇愛爾蘭威士忌 (200ml)", volume: 200, abv: 40.0, alcohol_g: 63.1}, {name: "蘇格登12年威士忌 (700ml)", volume: 700, abv: 40.0, alcohol_g: 220.9}, {name: "仕高利達 金牌 (700ml)", volume: 700, abv: 40.0, alcohol_g: 220.9}, {name: "櫻尾琴酒", volume: 700, abv: 47.0, alcohol_g: 259.4}, {name: "格蘭傑12年 蘇玳桶納塔朵威士忌", volume: 700, abv: 46.0, alcohol_g: 254.0}, {name: "詩貝12年單一麥芽蘇格蘭威士忌", volume: 700, abv: 40.0, alcohol_g: 220.9}, {name: "格蘭菲迪12年 天使雪莉", volume: 700, abv: 43.0, alcohol_g: 237.5}, {name: "百富12年 雙桶單一純麥威士忌", volume: 700, abv: 40.0, alcohol_g: 220.9}, {name: "格蘭傑 物語系列 冰淇淋物語", volume: 700, abv: 46.0, alcohol_g: 254.0} ],
+            kaoliang: [ {name: "高粱酒38% 300mL", volume: 300, abv: 38.0, alcohol_g: 90.0}, {name: "高粱酒38% 600mL", volume: 600, abv: 38.0, alcohol_g: 179.9}, {name: "高粱酒38% 750mL", volume: 750, abv: 38.0, alcohol_g: 224.9}, {name: "高粱酒42% 500mL", volume: 500, abv: 42.0, alcohol_g: 168.0}, {name: "高粱酒52% 500mL", volume: 500, abv: 52.0, alcohol_g: 208.0}, {name: "高粱酒58% 125mL", volume: 125, abv: 58.0, alcohol_g: 58.0}, {name: "高粱酒58% 200mL", volume: 200, abv: 58.0, alcohol_g: 92.8}, {name: "高粱酒58% 500mL", volume: 500, abv: 58.0, alcohol_g: 232.0}, {name: "東引陳年高粱酒 (300ml)", volume: 300, abv: 40.0, alcohol_g: 94.7}, {name: "金門高粱酒 38% (300ml)", volume: 300, abv: 38.0, alcohol_g: 90.0}, {name: "金門高粱酒 58% (300ml)", volume: 300, abv: 58.0, alcohol_g: 137.3}, {name: "金門高粱酒-白標 58% (600ml)", volume: 600, abv: 58.0, alcohol_g: 274.5}, {name: "金門高粱酒-黑標 58% (750ml)", volume: 750, abv: 58.0, alcohol_g: 343.2} ],
+            cocktails: [ {name: "瑪格麗特 (Margarita)", alcohol_g: 18.0}, {name: "馬丁尼 (Martini)", alcohol_g: 20.6}, {name: "莫吉托 (Mojito)", alcohol_g: 14.4}, {name: "老式雞尾酒 (Old Fashioned)", alcohol_g: 19.2}, {name: "都會 (Cosmopolitan)", alcohol_g: 18.0}, {name: "長島冰茶 (Long Island Iced Tea)", alcohol_g: 22.8}, {name: "戴基利 (Daiquiri)", alcohol_g: 14.4}, {name: "尼格羅尼 (Negroni)", alcohol_g: 19.7}, {name: "性感海灘", alcohol_g: 17.0}, {name: "螺絲起子", alcohol_g: 15.8}, {name: "桑格莉亞", alcohol_g: 18.6}, {name: "琴通寧", alcohol_g: 15.8}, {name: "莫斯科驢子", alcohol_g: 15.8}, {name: "咖啡馬丁尼", alcohol_g: 19.7} ]
+        };
+
+        let selectedDrinks = [];
+        let chart = null;
+        let metabolismParams = { rate: 7.0, min: 4.0, max: 10.0, step: 0.5 };
+        const factors = { gender: { male: {r: 0.68, elimination_factor: 1.0}, female: {r: 0.55, elimination_factor: 0.85} }, liver_function: { normal: 1.0, child_pugh_a: 0.9, child_pugh_b: 0.75, child_pugh_c: 0.5 }, food_status: { fasted: {ka: 1.0}, light_meal: {ka: 0.6}, heavy_meal: {ka: 0.3} }, drinking_pattern: { occasional: {cyp2e1_factor: 1.0}, regular: {cyp2e1_factor: 1.2}, heavy: {cyp2e1_factor: 1.4} } };
+
+        const elements = {
+            formulaRadios: app.querySelectorAll('input[name="formula"]'),
+            decreaseRateBtn: app.querySelector('#decreaseRateBtn'),
+            increaseRateBtn: app.querySelector('#increaseRateBtn'),
+            metabolismRateValue: app.querySelector('#metabolismRateValue'),
+            gender: app.querySelector('#gender'),
+            weight: app.querySelector('#weight'),
+            height: app.querySelector('#height'),
+            age: app.querySelector('#age'),
+            liverFunction: app.querySelector('#liverFunction'),
+            foodStatus: app.querySelector('#foodStatus'),
+            drinkingPattern: app.querySelector('#drinkingPattern'),
+            tabBtns: app.querySelectorAll('.tab-btn'),
+            beverageGrid: app.querySelector('#beverageGrid'),
+            customInput: app.querySelector('#customInput'),
+            customName: app.querySelector('#customName'),
+            customVolume: app.querySelector('#customVolume'),
+            customABV: app.querySelector('#customABV'),
+            addCustomBtn: app.querySelector('#addCustomBtn'),
+            drinksList: app.querySelector('#drinksList'),
+            calculateBtn: app.querySelector('#calculateBtn'),
+            totalAlcohol: app.querySelector('#totalAlcohol'),
+            peakBAC: app.querySelector('#peakBAC'),
+            timeToPeak: app.querySelector('#timeToPeak'),
+            totalTime: app.querySelector('#totalTime'),
+            warningMessage: app.querySelector('#warningMessage'),
+            hourlyTableBody: app.querySelector('#hourlyTableBody'),
+            hourlyTable: app.querySelector('#hourlyTable'),
+            aiInterpretBtn: app.querySelector('#aiInterpretBtn'),
+            aiSummaryOutput: app.querySelector('#aiSummaryOutput'),
+            metabolismChart: app.querySelector('#metabolismChart')
+        };
+
+        function initializeEventListeners() {
+            elements.calculateBtn.addEventListener('click', calculateMetabolism);
+            elements.aiInterpretBtn.addEventListener('click', handleAiInterpretation);
+            elements.tabBtns.forEach(btn => btn.addEventListener('click', function() { switchCategory(this.dataset.category); }));
+            elements.decreaseRateBtn.addEventListener('click', () => adjustMetabolismRate(-1));
+            elements.increaseRateBtn.addEventListener('click', () => adjustMetabolismRate(1));
+            elements.addCustomBtn.addEventListener('click', addCustomDrink);
+            [elements.gender, elements.weight, elements.height, elements.age, elements.liverFunction, elements.foodStatus, elements.drinkingPattern].forEach(el => el.addEventListener('change', () => { if (selectedDrinks.length > 0) calculateMetabolism(); }));
+            elements.formulaRadios.forEach(radio => radio.addEventListener('change', () => { if (selectedDrinks.length > 0) calculateMetabolism(); }));
+            elements.drinksList.addEventListener('click', function(event) {
+                const removeBtn = event.target.closest('.remove-drink');
+                if (removeBtn && removeBtn.dataset.id) {
+                    removeDrink(removeBtn.dataset.id);
+                }
+            });
+        }
+
+        async function handleAiInterpretation() {
+            elements.aiInterpretBtn.disabled = true;
+            elements.aiSummaryOutput.textContent = '正在思考中...';
+            if (!('ai' in window)) {
+                elements.aiSummaryOutput.textContent = '此瀏覽器不支援內建 AI 功能。';
+                return;
+            }
+            try {
+                const canCreate = await window.ai.canCreateTextSession();
+                if (canCreate === 'no') {
+                    elements.aiSummaryOutput.textContent = 'AI 功能目前無法使用，請稍後再試。';
+                    elements.aiInterpretBtn.disabled = false;
+                    return;
+                }
+                const session = await window.ai.createTextSession();
+                const totalAlcohol = elements.totalAlcohol.textContent;
+                const peakBAC = elements.peakBAC.textContent;
+                const totalTime = elements.totalTime.textContent;
+                const prompt = `你是一位友善的健康顧問，專長是將複雜的數據用簡單易懂的方式說明。請根據以下酒精代謝計算數據，為使用者生成一段約 100-150 字的摘要與通用提醒，並使用台灣慣用的繁體中文。\n\n數據：\n- 總酒精攝取量: ${totalAlcohol}\n- 預估血中酒精濃度峰值 (BAC): ${peakBAC}\n- 預估完全代謝時間: ${totalTime}\n\n你的回應必須包含三個部分：\n1.  第一部分：客觀總結數據，說明這次飲酒的整體情況。\n2.  第二部分：根據 BAC 峰值，提供一個通用安全提醒，例如代謝期間應避免駕駛或操作危險機械。\n3.  第三部分：用一句鼓勵健康自我管理的正面話語作結。\n\n**嚴格禁止**：提供任何個人化的醫療建議、診斷、或治療方案。你的所有建議都必須是普遍適用的健康常識。`;
+                elements.aiSummaryOutput.textContent = '';
+                const stream = session.promptStreaming(prompt);
+                for await (const chunk of stream) {
+                    elements.aiSummaryOutput.textContent += chunk;
+                }
+                session.destroy();
+            } catch (error) {
+                console.error('AI Interpretation Error:', error);
+                elements.aiSummaryOutput.textContent = 'AI 回應時發生錯誤，請稍後再試。';
+            } finally {
+                elements.aiInterpretBtn.disabled = false;
+            }
+        }
+
+        function adjustMetabolismRate(direction) {
+            let newRate = metabolismParams.rate + (direction * metabolismParams.step);
+            if (newRate >= metabolismParams.min - 0.01 && newRate <= metabolismParams.max + 0.01) {
+                metabolismParams.rate = parseFloat(newRate.toFixed(1));
+                updateMetabolismRateDisplay();
+                if (selectedDrinks.length > 0) calculateMetabolism();
+            }
+        }
+
+        function updateMetabolismRateDisplay() {
+            elements.metabolismRateValue.textContent = metabolismParams.rate.toFixed(1);
+        }
+
+        function switchCategory(category) {
+            elements.tabBtns.forEach(btn => btn.classList.remove('active'));
+            app.querySelector(`[data-category="${category}"]`).classList.add('active');
+            elements.customInput.classList.toggle('hidden', category !== 'custom');
+            if (category !== 'custom') loadBeverageCategory(category);
+            else elements.beverageGrid.innerHTML = '';
+        }
+
+        function loadBeverageCategory(category) {
+            const beverages = beverageData[category] || [];
+            elements.beverageGrid.innerHTML = beverages.map((bev, index) => `
+                <div class="beverage-card" data-category="${category}" data-index="${index}">
+                    <div class="beverage-name">${bev.name}</div>
+                    <div class="beverage-details">
+                        <span>${bev.volume ? `${bev.volume}mL, ${bev.abv}%` : ''}</span>
+                        <span class="beverage-alcohol">${bev.alcohol_g.toFixed(1)}g</span>
+                    </div>
+                </div>`).join('');
+            elements.beverageGrid.querySelectorAll('.beverage-card').forEach(card => card.addEventListener('click', function() {
+                const cat = this.dataset.category;
+                const idx = parseInt(this.dataset.index);
+                addDrink(beverageData[cat][idx]);
+            }));
+        }
+
+        function addCustomDrink() {
+            const name = elements.customName.value.trim();
+            const volume = parseFloat(elements.customVolume.value);
+            const abv = parseFloat(elements.customABV.value);
+            if (!name || !volume || !abv) { alert('請填寫完整的飲品資訊'); return; }
+            const alcohol_g = (volume * abv / 100) * 0.789;
+            addDrink({ name, volume, abv, alcohol_g: parseFloat(alcohol_g.toFixed(1)) });
+            elements.customName.value = '';
+            elements.customVolume.value = '';
+            elements.customABV.value = '';
+        }
+
+        function addDrink(drink) {
+            selectedDrinks.push({ ...drink, id: Date.now() + Math.random() });
+            updateSelectedDrinks();
+            calculateMetabolism();
+        }
+
+        function removeDrink(id) {
+            selectedDrinks = selectedDrinks.filter(drink => drink.id != id);
+            updateSelectedDrinks();
+            calculateMetabolism();
+        }
+
+        function updateSelectedDrinks() {
+            if (selectedDrinks.length === 0) {
+                elements.drinksList.innerHTML = '<p class="empty-message">尚未選擇任何飲品</p>';
+                return;
+            }
+            elements.drinksList.innerHTML = selectedDrinks.map(drink => `
+                <div class="drink-item">
+                    <div class="drink-info">
+                        <div class="drink-name">${drink.name}</div>
+                        <div class="drink-details">${drink.volume ? `${drink.volume}mL, ${drink.abv}%` : ''}</div>
+                    </div>
+                    <div class="drink-alcohol">${drink.alcohol_g.toFixed(1)}g</div>
+                    <button class="remove-drink" data-id="${drink.id}">移除</button>
+                </div>`).join('');
+        }
+
+        function calculateMetabolism() {
+            if (selectedDrinks.length === 0) { clearResults(); return; }
+            const params = getCalculationParameters();
+            if (!params.weight || !params.height || !params.age) { return; }
+            const totalAlcohol = selectedDrinks.reduce((sum, drink) => sum + drink.alcohol_g, 0);
+            let results;
+            try {
+                const selectedFormula = document.querySelector('input[name="formula"]:checked').value;
+                switch (selectedFormula) {
+                    case 'simple': results = calculateSimpleMetabolism(totalAlcohol, params); break;
+                    case 'widmark': results = calculateWidmarkMetabolism(totalAlcohol, params); break;
+                    case 'watson': results = calculateWatsonMetabolism(totalAlcohol, params); break;
+                    case 'dual_phase': results = calculateDualPhaseMetabolism(totalAlcohol, params); break;
+                    default: results = calculateSimpleMetabolism(totalAlcohol, params);
+                }
+                displayResults(results, totalAlcohol);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function getCalculationParameters() {
+            return {
+                gender: elements.gender.value,
+                weight: parseFloat(elements.weight.value),
+                height: parseFloat(elements.height.value),
+                age: parseFloat(elements.age.value),
+                liverFunction: elements.liverFunction.value,
+                foodStatus: elements.foodStatus.value,
+                drinkingPattern: elements.drinkingPattern.value,
+                metabolismRate: metabolismParams.rate
+            };
+        }
+
+        function calculateSimpleMetabolism(totalAlcohol, params) {
+            const metabolismRate = params.metabolismRate;
+            const liverFactor = factors.liver_function[params.liverFunction];
+            const drinkingFactor = factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            const genderFactor = factors.gender[params.gender].elimination_factor;
+            const adjustedRate = metabolismRate * liverFactor * drinkingFactor * genderFactor;
+            const totalTime = totalAlcohol > 0 ? totalAlcohol / adjustedRate : 0;
+            const distributionVolume = params.weight * factors.gender[params.gender].r;
+            const peakBAC = totalAlcohol > 0 ? (totalAlcohol / (distributionVolume * 1.055)) / 10 : 0;
+            const timePoints = [];
+            const bacValues = [];
+            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+                timePoints.push(t);
+                const remainingAlcohol = Math.max(0, totalAlcohol - (adjustedRate * t));
+                bacValues.push(Math.max(0, (remainingAlcohol / (distributionVolume * 1.055)) / 10));
+            }
+            return { peakBAC, totalTime, timeToPeak: 0.5, timePoints, bacValues };
+        }
+
+        function calculateWidmarkMetabolism(totalAlcohol, params) {
+            const r = factors.gender[params.gender].r;
+            const beta = 0.15 * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            const peakBAC = totalAlcohol > 0 ? ((0.806 * totalAlcohol * 1.2) / (r * params.weight)) : 0;
+            const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
+            const timePoints = [];
+            const bacValues = [];
+            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+                timePoints.push(t);
+                bacValues.push(Math.max(0, peakBAC - (beta * t)));
+            }
+            return { peakBAC, totalTime, timeToPeak: 0.5, timePoints, bacValues };
+        }
+
+        function calculateWatsonMetabolism(totalAlcohol, params) {
+            let tbw;
+            if (params.gender === 'male') {
+                tbw = 2.447 - (0.09156 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
+            } else {
+                tbw = -2.097 + (0.1069 * params.height) + (0.2466 * params.weight);
+            }
+            tbw = Math.max(tbw, params.weight * 0.4);
+            const beta = 0.15 * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            const peakBAC = totalAlcohol > 0 ? (totalAlcohol / (tbw * 0.822)) / 10 : 0;
+            const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
+            const timePoints = [];
+            const bacValues = [];
+            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+                timePoints.push(t);
+                bacValues.push(Math.max(0, peakBAC - (beta * t)));
+            }
+            return { peakBAC, totalTime, timeToPeak: 1.0, timePoints, bacValues };
+        }
+
+        function calculateDualPhaseMetabolism(totalAlcohol, params) {
+            const r = factors.gender[params.gender].r;
+            const ka = factors.food_status[params.foodStatus].ka;
+            const Vd = r * params.weight;
+            const Ke = (0.015 / 10) * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
+            let tpeak = 1.0, peakBAC = 0, totalTime = 0;
+            if (totalAlcohol > 0) {
+                if (ka > Ke) {
+                    tpeak = (1 / (ka - Ke)) * Math.log(ka / Ke);
+                    peakBAC = (totalAlcohol / Vd) * (ka / (ka - Ke)) * (Math.exp(-Ke * tpeak) - Math.exp(-ka * tpeak));
+                } else {
+                    peakBAC = (totalAlcohol / (Vd * 1.055)) / 10;
+                }
+                totalTime = Math.max(tpeak + (peakBAC / Ke), 4);
+            }
+            const timePoints = [];
+            const bacValues = [];
+            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+                timePoints.push(t);
+                let bac = 0;
+                if (totalAlcohol > 0 && ka > Ke) {
+                    bac = (totalAlcohol / Vd) * (ka / (ka - Ke)) * (Math.exp(-Ke * t) - Math.exp(-ka * t));
+                } else if (totalAlcohol > 0) {
+                     const adjustedRate = params.metabolismRate * factors.gender[params.gender].elimination_factor * factors.liver_function[params.liverFunction];
+                     const remainingAlcohol = Math.max(0, totalAlcohol - (adjustedRate * t));
+                     bac = (remainingAlcohol / (Vd * 1.055)) / 10;
+                }
+                bacValues.push(Math.max(0, bac));
+            }
+            return { peakBAC, totalTime, timeToPeak: tpeak, timePoints, bacValues };
+        }
+
+        function displayResults(results, totalAlcohol) {
+            elements.totalAlcohol.textContent = `${totalAlcohol.toFixed(1)} g`;
+            elements.peakBAC.textContent = `${results.peakBAC.toFixed(3)}‰`;
+            elements.timeToPeak.textContent = `${results.timeToPeak.toFixed(1)} 小時`;
+            elements.totalTime.textContent = `${results.totalTime.toFixed(1)} 小時`;
+            elements.warningMessage.style.display = results.peakBAC >= 0.03 ? 'block' : 'none';
+            elements.aiInterpretBtn.disabled = false;
+            elements.aiSummaryOutput.innerHTML = '';
+            updateChart(results);
+            updateHourlyTable(results);
+        }
+
+        function updateChart(results) {
+            const ctx = elements.metabolismChart.getContext('2d');
+            if (chart) { chart.destroy(); }
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: results.timePoints.map(t => `${t.toFixed(1)}h`),
+                    datasets: [{
+                        label: 'BAC (‰)', data: results.bacValues, borderColor: 'var(--color-primary)', backgroundColor: 'rgba(59, 125, 189, 0.1)',
+                        fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6
+                    }, {
+                        label: '法定標準 (0.03‰)', data: new Array(results.timePoints.length).fill(0.03), borderColor: 'var(--color-error)',
+                        backgroundColor: 'transparent', borderDash: [5, 5], pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '血中酒精濃度變化曲線' } },
+                    scales: { x: { title: { display: true, text: '時間 (小時)' } }, y: { title: { display: true, text: 'BAC (‰)' }, beginAtZero: true } }
+                }
+            });
+        }
+
+        function updateHourlyTable(results) {
+            let html = '';
+            for (let i = 0; i < results.timePoints.length && i < 48; i += 2) {
+                const time = results.timePoints[i];
+                const bac = results.bacValues[i];
+                let status = 'status-safe';
+                let statusText = '安全';
+                if (bac >= 0.05) { status = 'status-danger'; statusText = '危險'; } 
+                else if (bac >= 0.03) { status = 'status-warning'; statusText = '警告'; }
+                html += `<tr><td>${time.toFixed(1)} 小時</td><td>${bac.toFixed(3)}‰</td><td class="${status}">${statusText}</td></tr>`;
+            }
+            elements.hourlyTableBody.innerHTML = html;
+            elements.hourlyTable.style.display = 'block';
+        }
+
+        function clearResults() {
+            elements.totalAlcohol.textContent = '0 g';
+            elements.peakBAC.textContent = '0.000‰';
+            elements.timeToPeak.textContent = '0 小時';
+            elements.totalTime.textContent = '0 小時';
+            elements.warningMessage.style.display = 'none';
+            elements.hourlyTable.style.display = 'none';
+            elements.aiInterpretBtn.disabled = true;
+            elements.aiSummaryOutput.innerHTML = '';
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+        }
+
+        initializeEventListeners();
+        updateMetabolismRateDisplay();
+        loadBeverageCategory('taiwan_beer');
+    };
+    //]]>
+    </script>
+</body>
+</html>
