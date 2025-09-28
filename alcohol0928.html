@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -412,7 +412,7 @@
                             <div id="aiSummaryOutput" class="ai-output-box"></div>
                         </div>
                         <div class="warning-message" id="warningMessage" style="display: none;">
-                            <p><strong>警告：</strong>血中酒精濃度已達或超過行政取締標準(0.3‰ / 0.03%)，請勿駕車！</p>
+                            <p><strong>警告：</strong>血中酒精濃度已達或超過法定標準(0.3‰)，請勿駕車！</p>
                         </div>
                         <div class="hourly-table" id="hourlyTable" style="display: none;">
                             <h3>每小時BAC變化</h3>
@@ -665,124 +665,99 @@
         }
 
         function calculateSimpleMetabolism(totalAlcohol, params) {
-            const metabolismRate = params.metabolismRate;
-            const liverFactor = factors.liver_function[params.liverFunction];
-            const drinkingFactor = factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
-            const genderFactor = factors.gender[params.gender].elimination_factor;
-            const adjustedRate = metabolismRate * liverFactor * drinkingFactor * genderFactor;
-            const totalTime = totalAlcohol > 0 ? totalAlcohol / adjustedRate : 0;
-            const distributionVolume = params.weight * factors.gender[params.gender].r;
-            const peakBAC = totalAlcohol > 0 ? (totalAlcohol / (distributionVolume * 1.055)) / 10 : 0;
-            const timePoints = [];
-            const bacValues = [];
-            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
-                timePoints.push(t);
-                const remainingAlcohol = Math.max(0, totalAlcohol - (adjustedRate * t));
-                bacValues.push(Math.max(0, (remainingAlcohol / (distributionVolume * 1.055)) / 10));
-            }
-            return { peakBAC, totalTime, timeToPeak: 0.5, timePoints, bacValues };
-        }
+    const beta = (typeof params.beta === 'number' ? params.beta : 0.15);
+    const Bw = (typeof params.Bw === 'number' ? params.Bw : 0.80);
+    const frac = params.gender === 'male' ? 0.70 : 0.60;
+    const TBW = frac * params.weight; // L
+    const C0 = totalAlcohol > 0 ? ((totalAlcohol * Bw) / TBW) : 0; // g/L
+    const totalTime = C0 > 0 ? C0 / beta : 0;
+
+    const timePoints = [];
+    const bacValues = [];
+    for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+        timePoints.push(t);
+        bacValues.push(Math.max(0, C0 - (beta * t)));
+    }
+    return { peakBAC: C0, totalTime, timeToPeak: 0.0, timePoints, bacValues };
+}
 
         function calculateWidmarkMetabolism(totalAlcohol, params) {
-            const r = factors.gender[params.gender].r;
-            const beta = 0.15 * factors.liver_function[params.liverFunction] * factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
-            const peakBAC = totalAlcohol > 0 ? ((0.806 * totalAlcohol * 1.2) / (r * params.weight)) : 0;
-            const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
-            const timePoints = [];
-            const bacValues = [];
-            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
-                timePoints.push(t);
-                bacValues.push(Math.max(0, peakBAC - (beta * t)));
-            }
-            return { peakBAC, totalTime, timeToPeak: 0.5, timePoints, bacValues };
-        }
+    const beta = (typeof params.beta === 'number' ? params.beta : 0.15); // g/L/hr
+    const r = params.gender === 'male' ? 0.71 : 0.58;
+    const Vd = r * params.weight; // L
+    const C0 = totalAlcohol > 0 ? (totalAlcohol / Vd) : 0; // g/L == ‰
+    const totalTime = C0 > 0 ? C0 / beta : 0;
+
+    const timePoints = [];
+    const bacValues = [];
+    for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+        timePoints.push(t);
+        bacValues.push(Math.max(0, C0 - (beta * t)));
+    }
+    return { peakBAC: C0, totalTime, timeToPeak: 0.0, timePoints, bacValues };
+}
 
         function calculateWatsonMetabolism(totalAlcohol, params) {
-            // 1) Watson TBW（單位：L）
-            let tbw;
-            if (params.gender === 'male') {
-                tbw = 2.447 - (0.09516 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
-            } else {
-                tbw = -2.097 + (0.1069 * params.height) + (0.2466 * params.weight);
-            }
-            tbw = Math.max(tbw, params.weight * 0.4);
+    // Watson TBW（L）
+    let tbw;
+    if (params.gender === 'male') {
+        tbw = 2.447 - (0.09516 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
+    } else {
+        tbw = -2.097 + (0.1069 * params.height) + (0.2466 * params.weight);
+    }
+    tbw = Math.max(tbw, params.weight * 0.4);
 
-            // 2) 血液含水分率（Bw）＆ 零階清除斜率 β（單位：g/L/hr）
-            const Bw = 0.80;
-            const beta = 0.15; // 固定值，Watson+零階假設
+    const Bw = (typeof params.Bw === 'number' ? params.Bw : 0.80);
+    const beta = (typeof params.beta === 'number' ? params.beta : 0.15); // g/L/hr
 
-            // 3) 初始 BAC 用 g/L（= ‰）表示，**不要除以 10**
-            const peakBAC = totalAlcohol > 0 ? (totalAlcohol * Bw) / tbw : 0; // g/L == ‰
+    // g/L == ‰
+    const peakBAC = totalAlcohol > 0 ? (totalAlcohol * Bw) / tbw : 0;
+    const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
 
-            // 4) 時間到 0 的理論值
-            const totalTime = peakBAC > 0 ? peakBAC / beta : 0;
-
-            // 5) 時序資料（峰值在 t=0）
-            const timePoints = [];
-            const bacValues = [];
-            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
-                timePoints.push(t);
-                bacValues.push(Math.max(0, peakBAC - beta * t));
-            }
-            return { peakBAC, totalTime, timeToPeak: 0.0, timePoints, bacValues };
-        }
+    const timePoints = [];
+    const bacValues = [];
+    for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+        timePoints.push(t);
+        bacValues.push(Math.max(0, peakBAC - (beta * t)));
+    }
+    return { peakBAC, totalTime, timeToPeak: 0.0, timePoints, bacValues };
+}
 
         function calculateDualPhaseMetabolism(totalAlcohol, params) {
-            const r = factors.gender[params.gender].r;
-            const ka = Math.max(factors.food_status[params.foodStatus].ka, 1e-4);
-            const Vd = r * params.weight;
-            const genderFactor = factors.gender[params.gender].elimination_factor;
-            const liverFactor = factors.liver_function[params.liverFunction];
-            const drinkingFactor = factors.drinking_pattern[params.drinkingPattern].cyp2e1_factor;
-            const adjustedRate = params.metabolismRate * genderFactor * liverFactor * drinkingFactor;
-            const baseKe = (adjustedRate > 0 && Vd > 0) ? adjustedRate / (Vd * 1.055) : 0;
-            const ke = Math.max(baseKe, 1e-4);
-            const nearEqual = Math.abs(ka - ke) < 1e-4;
-            let tpeak = 1.0, peakBAC = 0, totalTime = 0;
-            if (totalAlcohol > 0) {
-                if (nearEqual) {
-                    tpeak = 1 / ke;
-                    peakBAC = (totalAlcohol / Vd) * Math.exp(-1);
-                } else {
-                    tpeak = Math.log(ka / ke) / (ka - ke);
-                    if (!Number.isFinite(tpeak) || tpeak < 0) {
-                        tpeak = 0;
-                    }
-                    peakBAC = (totalAlcohol / Vd) * (ka / (ka - ke)) * (Math.exp(-ke * tpeak) - Math.exp(-ka * tpeak));
-                }
-                peakBAC = Math.max(0, peakBAC);
-                if (ke > 0) {
-                    const targetBAC = 0.005;
-                    const safePeak = Math.max(peakBAC, targetBAC);
-                    const eliminationTail = Math.log(safePeak / targetBAC) / ke;
-                    totalTime = Math.max(4, tpeak + Math.max(0, eliminationTail));
-                } else {
-                    totalTime = Math.max(4, tpeak + 4);
-                }
-            }
-            const timePoints = [];
-            const bacValues = [];
-            for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
-                timePoints.push(t);
-                let bac = 0;
-                if (totalAlcohol > 0) {
-                    if (nearEqual) {
-                        bac = (totalAlcohol / Vd) * ke * t * Math.exp(-ke * t);
-                    } else {
-                        bac = (totalAlcohol / Vd) * (ka / (ka - ke)) * (Math.exp(-ke * t) - Math.exp(-ka * t));
-                    }
-                }
-                bacValues.push(Math.max(0, bac));
-            }
-            return { peakBAC, totalTime, timeToPeak: tpeak, timePoints, bacValues };
-        }
+    const beta = (typeof params.beta === 'number' ? params.beta : 0.15);
+    const Bw = (typeof params.Bw === 'number' ? params.Bw : 0.80);
+    const tPeak = (typeof params.tPeak === 'number' ? params.tPeak : 0.5);
+
+    // Use Watson TBW for distribution
+    let tbw;
+    if (params.gender === 'male') {
+        tbw = 2.447 - (0.09516 * params.age) + (0.1074 * params.height) + (0.3362 * params.weight);
+    } else {
+        tbw = -2.097 + (0.1069 * params.height) + (0.2466 * params.weight);
+    }
+    tbw = Math.max(tbw, params.weight * 0.4);
+
+    const C0 = totalAlcohol > 0 ? ((totalAlcohol * Bw) / tbw) : 0; // g/L
+    const totalTime = tPeak + (C0 > 0 ? (C0 / beta) : 0);
+
+    const timePoints = [];
+    const bacValues = [];
+    const k = tPeak > 0 ? (C0 / tPeak) : 0;
+    for (let t = 0; t <= Math.ceil(totalTime) + 2; t += 0.5) {
+        let c;
+        if (t <= tPeak) { c = k * t; }
+        else { c = Math.max(0, C0 - (beta * (t - tPeak))); }
+        timePoints.push(t); bacValues.push(c);
+    }
+    return { peakBAC: C0, totalTime, timeToPeak: tPeak, timePoints, bacValues };
+}
 
         function displayResults(results, totalAlcohol) {
             elements.totalAlcohol.textContent = `${totalAlcohol.toFixed(1)} g`;
             elements.peakBAC.textContent = `${results.peakBAC.toFixed(3)}‰`;
             elements.timeToPeak.textContent = `${results.timeToPeak.toFixed(1)} 小時`;
             elements.totalTime.textContent = `${results.totalTime.toFixed(1)} 小時`;
-            elements.warningMessage.style.display = results.peakBAC >= 0.3 ? 'block' : 'none';
+            elements.warningMessage.style.display = results.peakBAC >= 0.03 ? 'block' : 'none';
             elements.aiInterpretBtn.disabled = false;
             elements.aiSummaryOutput.innerHTML = '';
             updateChart(results);
@@ -796,14 +771,11 @@
                 type: 'line',
                 data: {
                     labels: results.timePoints.map(t => `${t.toFixed(1)}h`),
-                                        datasets: [{
+                    datasets: [{
                         label: 'BAC (‰)', data: results.bacValues, borderColor: 'var(--color-primary)', backgroundColor: 'rgba(59, 125, 189, 0.1)',
                         fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6
                     }, {
-                        label: '行政取締 0.3‰ (0.03%)', data: new Array(results.timePoints.length).fill(0.3), borderColor: 'var(--color-warning)',
-                        backgroundColor: 'transparent', borderDash: [5, 5], pointRadius: 0
-                    }, {
-                        label: '刑責 0.5‰ (0.05%)', data: new Array(results.timePoints.length).fill(0.5), borderColor: 'var(--color-error)',
+                        label: '法定標準 (0.3‰)', data: new Array(results.timePoints.length).fill(0.3), borderColor: 'var(--color-error)',
                         backgroundColor: 'transparent', borderDash: [5, 5], pointRadius: 0
                     }]
                 },
@@ -822,8 +794,8 @@
                 const bac = results.bacValues[i];
                 let status = 'status-safe';
                 let statusText = '安全';
-                if (bac >= 0.5) { status = 'status-danger'; statusText = '危險'; } 
-                else if (bac >= 0.3) { status = 'status-warning'; statusText = '警告'; }
+                if (bac >= 0.05) { status = 'status-danger'; statusText = '危險'; } 
+                else if (bac >= 0.03) { status = 'status-warning'; statusText = '警告'; }
                 html += `<tr><td>${time.toFixed(1)} 小時</td><td>${bac.toFixed(3)}‰</td><td class="${status}">${statusText}</td></tr>`;
             }
             elements.hourlyTableBody.innerHTML = html;
